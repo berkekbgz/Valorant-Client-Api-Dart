@@ -207,6 +207,15 @@ class Client {
     return data;
   }
 
+  Future<List<Map<String, dynamic>>> fetchNameByPuuid({List<String>? puuids}) async {
+    var data = await http.put(
+      Uri.parse(resources.getbaseUrlbyType(resources.endpoints.DisplayNameService_BaseUrlType(), shard: shard, region: region, port: lockfile['port']) + resources.endpoints.DisplayNameService_FetchPlayers_BySubjects()),
+      body: json.encode(puuids ?? [puuid]),
+    );
+
+    return (json.decode(data.body) as List).map((data) => data = data as Map<String, dynamic>).toList();
+  }
+
   //Store endpoints
 
   /// ### Store_GetOffers
