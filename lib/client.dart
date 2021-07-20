@@ -236,7 +236,7 @@ class Client {
 
   /// ### Store_GetWallet
   ///
-  ///Get amount of Valorant points and Radianite the player has
+  /// Get amount of Valorant points and Radianite the player has
   ///
   ///Valorant points have the id 85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741 and Radianite points have the id e59aa87c-4cbf-517a-5983-6e81511be9b7
   Future<Map<String, dynamic>> storeFetchWallet() async {
