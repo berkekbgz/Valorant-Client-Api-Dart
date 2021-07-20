@@ -207,13 +207,26 @@ class Client {
     return data;
   }
 
-  Future<List<Map<String, dynamic>>> fetchNameByPuuid({List<String>? puuids}) async {
+  /// ### DisplayNameService_FetchPlayers_BySubjects
+  ///
+  /// Get players displayname, GameName, TagLine and subject
+  Future<List<Map<String, dynamic>>> fetchNameByPuuidList({List<String>? puuids}) async {
     var data = await http.put(
       Uri.parse(resources.getbaseUrlbyType(resources.endpoints.DisplayNameService_BaseUrlType(), shard: shard, region: region, port: lockfile['port']) + resources.endpoints.DisplayNameService_FetchPlayers_BySubjects()),
       body: json.encode(puuids ?? [puuid]),
     );
 
     return (json.decode(data.body) as List).map((data) => data = data as Map<String, dynamic>).toList();
+  }
+
+  /// ### PlayerPreferences_GetSettings
+  ///
+  /// Get players ingame settings
+  Future<Map<String, dynamic>> fetchPlayerSettings() async {
+    var response = await fetch(endpoint: resources.endpoints.PlayerPreferences_GetSettings(), endpointType: resources.endpoints.PlayerPreferences_BaseUrlType());
+    var encryptedSettings = base64.decode(response['data'].toString());
+    var settings = ZLibCodec(raw: true).decode(encryptedSettings);
+    return json.decode(utf8.decode(settings));
   }
 
   //Store endpoints

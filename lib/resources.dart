@@ -19,6 +19,7 @@ class ValorantResources {
     final String _baseEndpointGlz = "https://glz-$region-1.$shard.a.pvp.net";
     final String _baseEndpointShared = "https://shared.$region.a.pvp.net";
     const String _baseEndpointApse = "https://apse.pp.riotgames.com/";
+    const String _baseEndpointPlayerpreferences = "https://playerpreferences.riotgames.com";
 
     switch (endpointType) {
       case "pd":
@@ -31,6 +32,8 @@ class ValorantResources {
         return _baseEndpointLocal;
       case "apse":
         return _baseEndpointApse;
+      case "playerpreferences":
+        return _baseEndpointPlayerpreferences;
       default:
         throw Exception("Unknown endpoint type");
     }
@@ -63,7 +66,7 @@ class _Endpoints {
   String Config_BaseUrlType() => "pd";
 
   String Content_FetchContent() => "/content-service/v2/content";
-  String Content_BaseUrlType() => "pd";
+  String Content_BaseUrlType() => "shared";
 
   String Contracts_Fetch({required String puuid}) => "/contracts/v1/contracts/$puuid";
   String Contracts_Activate({required String puuid, required String contractId}) => "/v1/contracts/$puuid/special/$contractId";
@@ -195,6 +198,10 @@ class _Endpoints {
   String Store_GetEntitlements({required String puuid, required String itemTypeId}) => "/store/v1/entitlements/$puuid/$itemTypeId";
   String Store_RevealNightMarketOffers({required String puuid}) => "/store/v2/storefront/$puuid/nightmarket/offers";
   String Store_BaseUrlType() => "pd";
+
+  String PlayerPreferences_GetSettings() => "/playerPref/v3/getPreference/Ares.PlayerSettings";
+  String PlayerPreferences_SaveSettings() => "/playerPref/v3/savePreference/Ares.PlayerSettings";
+  String PlayerPreferences_BaseUrlType() => "playerpreferences";
 
   String LocalRiotClient_GetAllPresences() => "/chat/v4/presences";
   String LocalRiotClient_GetSession() => "/product-session/v1/external-sessions";
