@@ -213,7 +213,7 @@ class Client {
   ///
   /// Get prices for all store items
   Future<Map<String, dynamic>> storeFetchOffers() async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetOffers(), endpointType: resources.endpoints.Store_GetOffers());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetOffers(), endpointType: resources.endpoints.Store_BaseUrlType());
     return data;
   }
 
