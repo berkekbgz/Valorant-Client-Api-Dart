@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'auth.dart';
+import 'models/endpoint_model.dart';
 import 'resources.dart';
 
 class Client {
@@ -54,9 +55,9 @@ class Client {
     }
   }
 
-  Future<Map<String, dynamic>> fetch({required String endpoint, required String endpointType}) async {
+  Future<Map<String, dynamic>> fetch({required Endpoint endpoint}) async {
     Map<String, dynamic>? data;
-    var response = await http.get(Uri.parse(resources.getbaseUrlbyType(endpointType, shard: shard, region: region, port: lockfile['port']) + endpoint), headers: endpointType == "local" ? localHeaders : headers);
+    var response = await http.get(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers);
     data = json.decode(response.body);
     if (data != null) {
       if (data['httpStatus'] == 400) {
@@ -71,7 +72,7 @@ class Client {
           headers.addAll(authenticate['headers']);
           localHeaders = {};
         }
-        return fetch(endpoint: endpoint, endpointType: endpointType);
+        return fetch(endpoint: endpoint);
       } else {
         return data;
       }
@@ -80,20 +81,20 @@ class Client {
     }
   }
 
-  Future<Map<String, dynamic>> post({required String endpoint, required String endpointType, Map<String, dynamic>? jsonData}) async {
-    var response = await http.post(Uri.parse(resources.getbaseUrlbyType(endpointType, shard: shard, region: region, port: lockfile['port']) + endpoint), headers: headers, body: json.encode(jsonData ?? {}));
+  Future<Map<String, dynamic>> post({required Endpoint endpoint, Object? jsonData}) async {
+    var response = await http.post(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
     var data = json.decode(response.body);
     return data;
   }
 
-  Future<Map<String, dynamic>> put({required String endpoint, required String endpointType, Map<String, dynamic>? jsonData}) async {
-    var response = await http.put(Uri.parse(resources.getbaseUrlbyType(endpointType, shard: shard, region: region, port: lockfile['port']) + endpoint), headers: headers, body: json.encode(jsonData ?? {}));
+  Future<Map<String, dynamic>> put({required Endpoint endpoint, Object? jsonData}) async {
+    var response = await http.put(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
     var data = json.decode(response.body);
     return data;
   }
 
-  Future<Map<String, dynamic>> delete({required String endpoint, required String endpointType, Map<String, dynamic>? jsonData}) async {
-    var response = await http.delete(Uri.parse(resources.getbaseUrlbyType(endpointType, shard: shard, region: region, port: lockfile['port']) + endpoint), headers: headers, body: json.encode(jsonData ?? {}));
+  Future<Map<String, dynamic>> delete({required Endpoint endpoint, Object? jsonData}) async {
+    var response = await http.delete(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
     var data = json.decode(response.body);
     return data;
   }
@@ -105,7 +106,7 @@ class Client {
   ///
   ///Get names and ids for game content such as agents, maps, guns, etc.
   Future<Map<String, dynamic>> fetchContent() async {
-    var data = await fetch(endpoint: resources.endpoints.Content_FetchContent(), endpointType: resources.endpoints.Content_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Content_FetchContent());
     return data;
   }
 
@@ -113,7 +114,7 @@ class Client {
   ///
   ///Get the account level, XP, and XP history for the active player
   Future<Map<String, dynamic>> fetchAccountXP() async {
-    var data = await fetch(endpoint: resources.endpoints.AccountXP_GetPlayer(puuid: puuid), endpointType: resources.endpoints.AccountXp_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.AccountXP_GetPlayer(puuid: puuid));
     return data;
   }
 
@@ -121,7 +122,7 @@ class Client {
   ///
   ///Get the player's current loadout
   Future<Map<String, dynamic>> fetchPlayerLoadout() async {
-    var data = await fetch(endpoint: resources.endpoints.playerLoadoutUpdate(puuid: puuid), endpointType: resources.endpoints.playerLoadoutUpdate_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.playerFetchLoadoutUpdate(puuid: puuid));
     return data;
   }
 
@@ -129,7 +130,7 @@ class Client {
   ///
   /// Use the values from client.fetch_player_loadout() excluding properties like subject and version. Loadout changes take effect when starting a new game
   Future<Map<String, dynamic>> putPlayerLoadout(Map<String, dynamic> loadout) async {
-    var data = await put(endpoint: resources.endpoints.playerLoadoutUpdate(puuid: puuid), endpointType: resources.endpoints.playerLoadoutUpdate_BaseUrlType(), jsonData: loadout);
+    var data = await put(endpoint: resources.endpoints.playerSaveLoadoutUpdate(puuid: puuid), jsonData: loadout);
     return data;
   }
 
@@ -137,7 +138,7 @@ class Client {
   ///
   /// Get the match making rating for a player
   Future<Map<String, dynamic>> fetchMMR({String? puuid}) async {
-    var data = await fetch(endpoint: resources.endpoints.MMR_FetchPlayer(puuid: puuid ?? this.puuid), endpointType: resources.endpoints.MMR_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.MMR_FetchPlayer(puuid: puuid ?? this.puuid));
     return data;
   }
 
@@ -148,7 +149,7 @@ class Client {
   /// There are 3 optional query parameters: start_index, end_index, and queue_id. queue can be one of null, competitive, custom, deathmatch, ggteam, newmap, onefa, snowball, spikerush, or unrated.
   Future<Map<String, dynamic>> fetchMatchHistory({String? puuid, int startIndex = 0, int endIndex = 15, Queues queue = Queues.empty}) async {
     if (resources.queueIsValid(queue)) {
-      var data = await fetch(endpoint: resources.endpoints.MatchHistory_FetchMatchHistory(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex, queue: queue), endpointType: resources.endpoints.MatchHistory_BaseUrlType());
+      var data = await fetch(endpoint: resources.endpoints.MatchHistory_FetchMatchHistory(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex, queue: queue));
       return data;
     }
     throw Exception("Queue Name is not valid");
@@ -158,7 +159,7 @@ class Client {
   ///
   /// Includes everything that the in-game match details screen shows including damage and kill positions, same as the official API w/ a production key
   Future<Map<String, dynamic>> fetchMatchDetails({required String matchId}) async {
-    var data = await fetch(endpoint: "/match-details/v1/matches/$matchId", endpointType: "pd");
+    var data = await fetch(endpoint: resources.endpoints.MatchDetails_FetchMatchDetails(matchId: matchId));
     return data;
   }
 
@@ -168,7 +169,7 @@ class Client {
   ///
   /// There are 3 optional query parameters: start_index, end_index, and queue_id. queue can be one of null, competitive, custom, deathmatch, ggteam, newmap, onefa, snowball, spikerush, or unrated.
   Future<Map<String, dynamic>> fetchCompetitiveUpdates({String? puuid, int startIndex = 0, int endIndex = 15, Queues queue = Queues.competitive}) async {
-    var data = await fetch(endpoint: resources.endpoints.MMR_FetchCompetitiveUpdates(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex), endpointType: resources.endpoints.MMR_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.MMR_FetchCompetitiveUpdates(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex));
     return data;
   }
 
@@ -179,7 +180,7 @@ class Client {
   /// The query parameter query can be added to search for a username.
   Future<Map<String, dynamic>> fetchLeaderboard({Map<String, dynamic>? season, int startIndex = 0, int size = 25}) async {
     season = season ?? await _getCurrentSeason();
-    var data = await fetch(endpoint: resources.endpoints.MMR_FetchLeaderboard(region: shard!, seasonId: season['ID'], startIndex: startIndex, size: size), endpointType: resources.endpoints.MMR_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.MMR_FetchLeaderboard(region: shard!, seasonId: season['ID'], startIndex: startIndex, size: size));
     return data;
   }
 
@@ -187,7 +188,7 @@ class Client {
   ///
   /// Checks for any gameplay penalties on the account
   Future<Map<String, dynamic>> fetchPlayerRestrictions() async {
-    var data = await fetch(endpoint: resources.endpoints.Restrictions_FetchPlayerRestrictionsV2(), endpointType: resources.endpoints.Restrictions_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Restrictions_FetchPlayerRestrictionsV2());
     return data;
   }
 
@@ -195,7 +196,7 @@ class Client {
   ///
   /// Get details for item upgrades
   Future<Map<String, dynamic>> fetchItemProgressionDefinitions() async {
-    var data = await fetch(endpoint: resources.endpoints.ItemProgressionDefinitionsV2_Fetch(), endpointType: resources.endpoints.ItemProgressionDefinitionsV2_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.ItemProgressionDefinitionsV2_Fetch());
     return data;
   }
 
@@ -203,7 +204,7 @@ class Client {
   ///
   /// Get various internal game configuration settings set by Riot
   Future<Map<String, dynamic>> fetchConfig() async {
-    var data = await fetch(endpoint: resources.endpoints.Config_FetchConfig(region: shard!), endpointType: resources.endpoints.Config_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Config_FetchConfig(region: shard!));
     return data;
   }
 
@@ -212,7 +213,7 @@ class Client {
   /// Get players displayname, GameName, TagLine and subject
   Future<List<Map<String, dynamic>>> fetchNameByPuuidList({List<String>? puuids}) async {
     var data = await http.put(
-      Uri.parse(resources.getbaseUrlbyType(resources.endpoints.DisplayNameService_BaseUrlType(), shard: shard, region: region, port: lockfile['port']) + resources.endpoints.DisplayNameService_FetchPlayers_BySubjects()),
+      Uri.parse(resources.endpoints.DisplayNameService_FetchPlayers_BySubjects().baseUrlType.uri(this) + resources.endpoints.DisplayNameService_FetchPlayers_BySubjects().url),
       body: json.encode(puuids ?? [puuid]),
     );
 
@@ -223,7 +224,7 @@ class Client {
   ///
   /// Get players ingame settings
   Future<Map<String, dynamic>> fetchPlayerSettings() async {
-    var response = await fetch(endpoint: resources.endpoints.PlayerPreferences_GetSettings(), endpointType: resources.endpoints.PlayerPreferences_BaseUrlType());
+    var response = await fetch(endpoint: resources.endpoints.PlayerPreferences_GetSettings());
     var encryptedSettings = base64.decode(response['data'].toString());
     var settings = ZLibCodec(raw: true).decode(encryptedSettings);
     return json.decode(utf8.decode(settings));
@@ -235,7 +236,7 @@ class Client {
   ///
   /// Get prices for all store items
   Future<Map<String, dynamic>> storeFetchOffers() async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetOffers(), endpointType: resources.endpoints.Store_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetOffers());
     return data;
   }
 
@@ -243,7 +244,7 @@ class Client {
   ///
   /// Get the currently available items in the store
   Future<Map<String, dynamic>> storeFetchStoreFront() async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetStorefrontV2(puuid: puuid), endpointType: resources.endpoints.Store_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetStorefrontV2(puuid: puuid));
     return data;
   }
 
@@ -253,7 +254,7 @@ class Client {
   ///
   ///Valorant points have the id 85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741 and Radianite points have the id e59aa87c-4cbf-517a-5983-6e81511be9b7
   Future<Map<String, dynamic>> storeFetchWallet() async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetWallet(puuid: puuid), endpointType: resources.endpoints.Store_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetWallet(puuid: puuid));
     return data;
   }
 
@@ -261,7 +262,7 @@ class Client {
   ///
   ///* [orderID]: The ID of the order. Can be obtained when creating an order.
   Future<Map<String, dynamic>> storeFetchOrder({required String orderId}) async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetOrder(orderId: orderId), endpointType: resources.endpoints.Store_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetOrder(orderId: orderId));
     return data;
   }
 
@@ -283,7 +284,7 @@ class Client {
   ///"de7caa6b-adf7-4588-bbd1-143831e786c6" //player_title,
   ///```
   Future<Map<String, dynamic>> storeFetchEntitlements({String? puuid, required String itemTypeID}) async {
-    var data = await fetch(endpoint: resources.endpoints.Store_GetEntitlements(puuid: puuid ?? this.puuid, itemTypeId: itemTypeID), endpointType: resources.endpoints.Store_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Store_GetEntitlements(puuid: puuid ?? this.puuid, itemTypeId: itemTypeID));
     return data;
   }
 
@@ -293,7 +294,7 @@ class Client {
   ///
   /// Get the Party ID that a given player belongs to
   Future<Map<String, dynamic>> partyFetchPlayer() async {
-    var data = await fetch(endpoint: resources.endpoints.Party_FetchPlayer(puuid: puuid), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Party_FetchPlayer(puuid: puuid));
     return data;
   }
 
@@ -301,7 +302,7 @@ class Client {
   ///
   /// Removes a player from the current party
   Future<Map<String, dynamic>> partyRemovePlayer({String? puuid}) async {
-    var data = await delete(endpoint: resources.endpoints.Party_RemovePlayer(puuid: puuid ?? this.puuid), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = await delete(endpoint: resources.endpoints.Party_RemovePlayer(puuid: puuid ?? this.puuid));
     return data;
   }
 
@@ -310,7 +311,7 @@ class Client {
   /// Get details about a given party id
   Future<Map<String, dynamic>> fetchParty() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await fetch(endpoint: "/parties/v1/parties/$partyId", endpointType: "glz");
+    var data = await fetch(endpoint: resources.endpoints.Party_FetchParty(partyId: partyId));
     return data;
   }
 
@@ -319,7 +320,7 @@ class Client {
   /// Sets whether a party member is ready for queueing or not
   Future<Map<String, dynamic>> partySetMemberReady({required bool isReady}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await post(endpoint: resources.endpoints.Party_SetMemberReady(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType(), jsonData: {"ready": isReady});
+    var data = await post(endpoint: resources.endpoints.Party_SetMemberReady(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -328,7 +329,7 @@ class Client {
   /// Refreshes the competitive tier for a player
   Future<Map<String, dynamic>> partyRefreshCompetitiveTier() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await post(endpoint: resources.endpoints.Party_RefreshCompetitiveTier(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Party_RefreshCompetitiveTier(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -337,7 +338,7 @@ class Client {
   /// Refreshes the identity for a player
   Future<Map<String, dynamic>> partyRefreshPlayerIdentity() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await post(endpoint: resources.endpoints.Party_RefreshPlayerIdentity(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Party_RefreshPlayerIdentity(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -346,7 +347,7 @@ class Client {
   /// Refreshes the pings for a player
   Future<Map<String, dynamic>> partyRefreshPings() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await post(endpoint: resources.endpoints.Party_RefreshPings(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Party_RefreshPings(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -355,7 +356,7 @@ class Client {
   /// Sets the matchmaking queue for the party
   Future<Map<String, dynamic>> partyChangeQueue({required String queueId}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = await post(endpoint: resources.endpoints.Party_ChangeQueue(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType(), jsonData: {"queueId": queueId});
+    var data = await post(endpoint: resources.endpoints.Party_ChangeQueue(partyId: partyId));
     return data;
   }
 
@@ -364,7 +365,7 @@ class Client {
   /// Starts a custom game
   Future<Map<String, dynamic>> partyStartCustomGame() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_StartCustomGame(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_StartCustomGame(partyId: partyId));
     return data;
   }
 
@@ -373,7 +374,7 @@ class Client {
   /// Enters the matchmaking queue
   Future<Map<String, dynamic>> partyEnterMatchmakingQueue() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_EnterMatchmakingQueue(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_EnterMatchmakingQueue(partyId: partyId));
     return data;
   }
 
@@ -382,7 +383,7 @@ class Client {
   /// Leaves the matchmaking queue
   Future<Map<String, dynamic>> partyLeaveMatchmakingQueue() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_LeaveFromParty(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_LeaveFromParty(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -391,7 +392,7 @@ class Client {
   /// Changes the party accessibility to be open or closed
   Future<Map<String, dynamic>> setPartyAccessibility({required bool isOpen}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_SetAccessibility(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType(), jsonData: {"accessibility": isOpen ? "OPEN" : "CLOSED"});
+    var data = post(endpoint: resources.endpoints.Party_SetAccessibility(partyId: partyId), jsonData: {"accessibility": isOpen ? "OPEN" : "CLOSED"});
     return data;
   }
 
@@ -411,7 +412,7 @@ class Client {
   ///```
   Future<Map<String, dynamic>> partySetCustomGameSettings({required Map<String, dynamic> settings}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_SetCustomGameSettings(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType(), jsonData: settings);
+    var data = post(endpoint: resources.endpoints.Party_SetCustomGameSettings(partyId: partyId), jsonData: settings);
     return data;
   }
 
@@ -422,7 +423,7 @@ class Client {
   /// omit the "#" in tag
   Future<Map<String, dynamic>> partyInviteByDisplayName({required String name, required String tag}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_InviteToPartyByDisplayName(partyId: partyId, playerName: name, playerTag: tag), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_InviteToPartyByDisplayName(partyId: partyId, playerName: name, playerTag: tag));
     return data;
   }
 
@@ -430,7 +431,7 @@ class Client {
   ///
   /// Requests to join a party
   Future<Map<String, dynamic>> partyRequestToJoin({required String partyId, required String otherPuuid}) async {
-    var data = post(endpoint: resources.endpoints.Party_RequestToJoinParty(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType(), jsonData: {
+    var data = post(endpoint: resources.endpoints.Party_RequestToJoinParty(partyId: partyId), jsonData: {
       "Subjects": [otherPuuid]
     });
     return data;
@@ -443,7 +444,7 @@ class Client {
   ///* [requestId] : The ID of the party request. Can be found from the Requests array on the Party_FetchParty endpoint.
   Future<Map<String, dynamic>> partyDeclineRequest({required String requestId}) async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_DeclineRequest(partyId: partyId, requestId: requestId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_DeclineRequest(partyId: partyId, requestId: requestId));
     return data;
   }
 
@@ -451,7 +452,7 @@ class Client {
   ///
   /// Join a party
   Future<Map<String, dynamic>> partyJoin({required String partyId}) async {
-    var data = post(endpoint: resources.endpoints.Party_PlayerJoin(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_PlayerJoin(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -459,7 +460,7 @@ class Client {
   ///
   /// Leave a party
   Future<Map<String, dynamic>> partyLeave({required String partyId}) async {
-    var data = post(endpoint: resources.endpoints.Party_PlayerLeave(puuid: puuid, partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_PlayerLeave(puuid: puuid, partyId: partyId));
     return data;
   }
 
@@ -467,7 +468,7 @@ class Client {
   ///
   /// Get information about the available gamemodes
   Future<Map<String, dynamic>> partyFetchCustomGameConfigs() async {
-    var data = post(endpoint: resources.endpoints.Party_FetchCustomGameConfigs(), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_FetchCustomGameConfigs());
     return data;
   }
 
@@ -476,7 +477,7 @@ class Client {
   /// Get a token for party chat
   Future<Map<String, dynamic>> partyFetchMucToken() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_FetchMUCToken(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_FetchMUCToken(partyId: partyId));
     return data;
   }
 
@@ -485,7 +486,7 @@ class Client {
   /// Get a token for party voice
   Future<Map<String, dynamic>> partyFetchVoiceToken() async {
     String partyId = (await partyFetchPlayer())['CurrentPartyID'];
-    var data = post(endpoint: resources.endpoints.Party_FetchVoiceToken(partyId: partyId), endpointType: resources.endpoints.Party_BaseUrlType());
+    var data = post(endpoint: resources.endpoints.Party_FetchVoiceToken(partyId: partyId));
     return data;
   }
 
@@ -495,7 +496,7 @@ class Client {
   ///
   /// Get the ID of a game in the pre-game stage
   Future<Map<String, dynamic>> pregameFetchPlayer() async {
-    var data = await fetch(endpoint: resources.endpoints.Pregame_GetPlayer(puuid: puuid), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Pregame_GetPlayer(puuid: puuid));
     return data;
   }
 
@@ -504,7 +505,7 @@ class Client {
   /// Get info for a game in the pre-game stage
   Future<Map<String, dynamic>> pregameFetchMatch({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.Pregame_GetMatch(matchId: matchId!), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Pregame_GetMatch(matchId: matchId!));
     return data;
   }
 
@@ -513,7 +514,7 @@ class Client {
   /// Get player skins and sprays for a game in the pre-game stage
   Future<Map<String, dynamic>> pregameFetchMatchLoadouts({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.Pregame_GetMatchLoadouts(matchId: matchId!), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Pregame_GetMatchLoadouts(matchId: matchId!));
     return data;
   }
 
@@ -522,7 +523,7 @@ class Client {
   /// Get a chat token
   Future<Map<String, dynamic>> pregameFetchChatToken({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.Pregame_FetchChatToken(matchId: matchId!), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Pregame_FetchChatToken(matchId: matchId!));
     return data;
   }
 
@@ -531,7 +532,7 @@ class Client {
   /// Get a voice token
   Future<Map<String, dynamic>> pregameFetchVoiceToken({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.Pregame_FetchVoiceToken(matchId: matchId!), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Pregame_FetchVoiceToken(matchId: matchId!));
     return data;
   }
 
@@ -542,7 +543,7 @@ class Client {
   /// don't use this for instalocking :)
   Future<Map<String, dynamic>> pregameSelectCharacter({required String agentId, String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await post(endpoint: resources.endpoints.Pregame_SelectCharacter(matchId: matchId!, characterId: agentId), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Pregame_SelectCharacter(matchId: matchId!, characterId: agentId));
     return data;
   }
 
@@ -553,7 +554,7 @@ class Client {
   /// don't use this for instalocking :)
   Future<Map<String, dynamic>> pregameLockCharacter({required String agentId, String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await post(endpoint: resources.endpoints.Pregame_LockCharacter(matchId: matchId!, characterId: agentId), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Pregame_LockCharacter(matchId: matchId!, characterId: agentId));
     return data;
   }
 
@@ -562,7 +563,7 @@ class Client {
   /// Quit a match in the pre-game stage
   Future<Map<String, dynamic>> pregameQuitMatch({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await post(endpoint: resources.endpoints.Pregame_QuitMatch(matchId: matchId!), endpointType: resources.endpoints.Pregame_BaseUrlType());
+    var data = await post(endpoint: resources.endpoints.Pregame_QuitMatch(matchId: matchId!));
     return data;
   }
 
@@ -572,7 +573,7 @@ class Client {
   ///
   /// Get the game ID for an ongoing game the player is in
   Future<Map<String, dynamic>> coregameFetchPlayer() async {
-    var data = await fetch(endpoint: "/core-game/v1/players/$puuid", endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchPlayer(puuid: puuid));
     return data;
   }
 
@@ -581,7 +582,7 @@ class Client {
   /// Get information about an ongoing game
   Future<Map<String, dynamic>> coregameFetchMatch({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchMatch(matchId: matchId!), endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchMatch(matchId: matchId!));
     return data;
   }
 
@@ -590,7 +591,7 @@ class Client {
   /// Get player skins and sprays for an ongoing game
   Future<Map<String, dynamic>> coregameFetchMatchLoadouts({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchMatchLoadouts(matchId: matchId!), endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchMatchLoadouts(matchId: matchId!));
     return data;
   }
 
@@ -599,7 +600,7 @@ class Client {
   /// Get a token for team chat
   Future<Map<String, dynamic>> coregameFetchTeamChatMucToken({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchTeamChatMUCToken(matchId: matchId!), endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchTeamChatMUCToken(matchId: matchId!));
     return data;
   }
 
@@ -608,7 +609,7 @@ class Client {
   /// Get a token for all chat
   Future<Map<String, dynamic>> coregameFetchAllChatMucToken({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchAllChatMUCToken(matchId: matchId!), endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_FetchAllChatMUCToken(matchId: matchId!));
     return data;
   }
 
@@ -617,7 +618,7 @@ class Client {
   /// Leave an in-progress game
   Future<Map<String, dynamic>> coregameDisasociatePlayer({String? matchId}) async {
     matchId = matchId ?? (await pregameFetchPlayer())['MatchID'];
-    var data = await fetch(endpoint: resources.endpoints.CoreGame_DisassociatePlayer(puuid: puuid, matchId: matchId!), endpointType: resources.endpoints.CoreGame_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.CoreGame_DisassociatePlayer(puuid: puuid, matchId: matchId!));
     return data;
   }
 
@@ -627,7 +628,7 @@ class Client {
   ///
   /// Get names and descriptions for contracts
   Future<Map<String, dynamic>> contractsFetchDefinitions() async {
-    var data = await fetch(endpoint: resources.endpoints.ContractDefinitions_Fetch(), endpointType: resources.endpoints.Contracts_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.ContractDefinitions_Fetch());
     return data;
   }
 
@@ -635,7 +636,7 @@ class Client {
   ///
   ///Get a list of contracts and completion status including match history
   Future<Map<String, dynamic>> contractsFetch() async {
-    var data = await fetch(endpoint: resources.endpoints.Contracts_Fetch(puuid: puuid), endpointType: resources.endpoints.Contracts_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Contracts_Fetch(puuid: puuid));
     return data;
   }
 
@@ -645,7 +646,7 @@ class Client {
   ///
   ///* [contract id]: The ID of the contract to activate. Can be found from the ContractDefinitions_Fetch endpoint.
   Future<Map<String, dynamic>> contractsActivate({required String contractId}) async {
-    var data = await fetch(endpoint: resources.endpoints.Contracts_Activate(puuid: puuid, contractId: contractId), endpointType: resources.endpoints.Contracts_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Contracts_Activate(puuid: puuid, contractId: contractId));
     return data;
   }
 
@@ -653,7 +654,7 @@ class Client {
   ///
   /// Get the battlepass contracts
   Future<Map<String, dynamic>> contractsFetchActiveStory() async {
-    var data = await fetch(endpoint: resources.endpoints.ContractDefinitions_FetchActiveStory(), endpointType: resources.endpoints.Contracts_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.ContractDefinitions_FetchActiveStory());
     return data;
   }
 
@@ -663,13 +664,13 @@ class Client {
   ///
   /// Get information about the current game session
   Future<Map<String, dynamic>> sessionFetch() async {
-    var data = await fetch(endpoint: resources.endpoints.Session_Get(puuid: puuid), endpointType: resources.endpoints.Session_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Session_Get(puuid: puuid));
     return data;
   }
 
   /// ### Session_ReConnect
   Future<Map<String, dynamic>> sessionReconnect() async {
-    var data = await fetch(endpoint: resources.endpoints.Session_ReConnect(puuid: puuid), endpointType: resources.endpoints.Session_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.Session_ReConnect(puuid: puuid));
     return data;
   }
 
@@ -679,7 +680,7 @@ class Client {
   ///
   /// NOTE: Only works on self or active user's friends
   Future<Map<String, dynamic>> localRiotClientFetchPresence({String? puuid}) async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllPresences(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllPresences());
     for (var presence in data['presences']) {
       if (presence['puuid'] == (puuid ?? this.puuid)) {
         return json.decode(String.fromCharCodes(base64.decode(presence['private'])));
@@ -694,7 +695,7 @@ class Client {
   ///
   /// private is a base64-encoded JSON string that contains useful information such as party and in-progress game score.
   Future<Map<String, dynamic>> localRiotClientFetchAllPresence() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllPresences(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllPresences());
     return data;
   }
 
@@ -702,7 +703,7 @@ class Client {
   ///
   /// Gets info about the running Valorant process including start arguments
   Future<Map<String, dynamic>> localRiotClientFetchSession() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetSession(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetSession());
     return data;
   }
 
@@ -710,7 +711,7 @@ class Client {
   ///
   /// Gets the player username and tagline
   Future<Map<String, dynamic>> localRiotClientFetchActiveAlias() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetActiveAlias(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetActiveAlias());
     return data;
   }
 
@@ -722,7 +723,7 @@ class Client {
   ///
   /// PBE access can be checked through here
   Future<Map<String, dynamic>> localRiotClientFetchEntitlementsToken() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetEntitlementsToken(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetEntitlementsToken());
     return data;
   }
 
@@ -730,7 +731,7 @@ class Client {
   ///
   /// Get the current session including player name and PUUID
   Future<Map<String, dynamic>> localRiotClientFetchChatSession() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetChatSession(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetChatSession());
     return data;
   }
 
@@ -738,7 +739,7 @@ class Client {
   ///
   /// Get a list of friends
   Future<Map<String, dynamic>> localRiotClientFetchAllFriends() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllFriends(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllFriends());
     return data;
   }
 
@@ -746,7 +747,7 @@ class Client {
   ///
   /// Get client settings
   Future<Map<String, dynamic>> localRiotClientFetchSettings() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetSettings(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetSettings());
     return data;
   }
 
@@ -754,7 +755,7 @@ class Client {
   ///
   /// Get pending friend requests
   Future<Map<String, dynamic>> localRiotClientFetchFriendRequests() async {
-    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetFriendRequests(), endpointType: resources.endpoints.LocalRiotClient_BaseUrlType());
+    var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetFriendRequests());
     return data;
   }
 
