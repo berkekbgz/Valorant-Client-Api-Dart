@@ -8,10 +8,6 @@ class ValorantResources {
 
   _Endpoints get endpoints => _Endpoints();
 
-  bool queueIsValid(Queues queue) {
-    return Queues.values.contains(queue);
-  }
-
   final List<String> regions = ["na", "eu", "latam", "br", "ap", "kr", "pbe", "tr"];
   final Map<String, String> regionShardOverrides = {"latam": "na", "br": "na", "tr": "eu"};
   final Map<String, String> shardRegionOverrides = {"pbe": "na"};

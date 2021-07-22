@@ -4,24 +4,25 @@ import 'package:http/http.dart' as http;
 
 import 'auth.dart';
 import 'models/endpoint_model.dart';
+import 'models/lockfile_model.dart';
 import 'resources.dart';
 
 class Client {
   final resources = ValorantResources.instance;
-  String puuid = "";
-  Map<dynamic, dynamic> lockfile = {};
   Map<String, String> headers = {"content-type": "application/json"};
   Map<String, String> localHeaders = {};
+  String puuid = "";
+  Lockfile? lockfile;
   String? lockfilepath;
   String? region;
   String? shard;
   Auth? auth;
 
-  Client({required String region, auth}) {
-    if (auth == null) {
+  Client({required String region, String? username, String? password}) {
+    if (username == null && password == null) {
       lockfilepath = Platform.environment['LOCALAPPDATA']! + r"\Riot Games\Riot Client\Config\lockfile";
     } else {
-      this.auth = Auth(auth['username'], auth['password']);
+      auth = Auth(username!, password!);
     }
 
     if (resources.regions.contains(region)) {
@@ -42,8 +43,8 @@ class Client {
       if (auth == null) {
         lockfile = await _getLockfile();
         localHeaders = _getLocalHeaders();
-        headers.addAll(await _getHeaders(lockfile['port'], localHeaders));
-        puuid = await _getPuuid(lockfile['port'], localHeaders);
+        headers.addAll(await _getHeaders(lockfile!.port, localHeaders));
+        puuid = await _getPuuid(lockfile!.port, localHeaders);
       } else {
         var authenticated = await auth!.authenticate();
         puuid = authenticated['userId'];
@@ -51,7 +52,7 @@ class Client {
         localHeaders = {};
       }
     } catch (e) {
-      throw Exception("Unable to activate; is VALORANT running? + $e");
+      throw Exception("Unable to activate : $e");
     }
   }
 
@@ -64,8 +65,8 @@ class Client {
         //If headers expired
         if (auth == null) {
           localHeaders = _getLocalHeaders();
-          (headers = await _getHeaders(lockfile['port'], localHeaders)).addAll({"content-type": "application/json"});
-          puuid = await _getPuuid(lockfile['port'], localHeaders);
+          (headers = await _getHeaders(lockfile!.port, localHeaders)).addAll({"content-type": "application/json"});
+          puuid = await _getPuuid(lockfile!.port, localHeaders);
         } else {
           var authenticate = await auth!.authenticate();
           puuid = authenticate['userId'];
@@ -148,11 +149,8 @@ class Client {
   ///
   /// There are 3 optional query parameters: start_index, end_index, and queue_id. queue can be one of null, competitive, custom, deathmatch, ggteam, newmap, onefa, snowball, spikerush, or unrated.
   Future<Map<String, dynamic>> fetchMatchHistory({String? puuid, int startIndex = 0, int endIndex = 15, Queues queue = Queues.empty}) async {
-    if (resources.queueIsValid(queue)) {
-      var data = await fetch(endpoint: resources.endpoints.MatchHistory_FetchMatchHistory(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex, queue: queue));
-      return data;
-    }
-    throw Exception("Queue Name is not valid");
+    var data = await fetch(endpoint: resources.endpoints.MatchHistory_FetchMatchHistory(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex, queue: queue));
+    return data;
   }
 
   /// Get the full info for a match
@@ -765,7 +763,7 @@ class Client {
     try {
       if (auth == null) {
         Map<String, String> localHeaders = {};
-        localHeaders['Authorization'] = 'Basic ' + base64.encode(utf8.encode(('riot:' + lockfile['password'])));
+        localHeaders['Authorization'] = 'Basic ' + base64.encode(utf8.encode(('riot:' + lockfile!.password)));
         return (localHeaders);
       } else {
         throw Exception("Localhost not found");
@@ -811,16 +809,10 @@ class Client {
     return version;
   }
 
-  Future<Map<String, dynamic>> _getLockfile() async {
+  Future<Lockfile> _getLockfile() async {
     if (File(lockfilepath!).existsSync()) {
       var data = (await File(lockfilepath!).openRead().map(utf8.decode).transform(const LineSplitter()).first).split(':');
-      return {
-        "name": data[0],
-        "PID": data[1],
-        "port": data[2],
-        "password": data[3],
-        "protocol": data[4],
-      };
+      return Lockfile(name: data[0], pid: data[1], port: data[2], password: data[3], protocol: data[4] == "https" ? Protocol.https : Protocol.http);
     } else {
       throw Exception();
     }

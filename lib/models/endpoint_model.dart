@@ -18,9 +18,11 @@ extension BaseUrlTypeExtension on BaseUrlType {
       case BaseUrlType.pd:
         return "https://pd.${client.shard}.a.pvp.net";
       case BaseUrlType.glz:
-        return "https://glz-${client.shard}-1.${client.shard}.a.pvp.net";
+        return "https://glz-${client.region}-1.${client.shard}.a.pvp.net";
       case BaseUrlType.shared:
         return "https://shared.${client.shard}.a.pvp.net";
+      case BaseUrlType.local:
+        return "https://127.0.0.1:${client.lockfile!.port}";
       case BaseUrlType.apse:
         return "https://apse.pp.riotgames.com";
       case BaseUrlType.playerpreferences:
