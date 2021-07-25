@@ -27,8 +27,6 @@ extension BaseUrlTypeExtension on BaseUrlType {
         return "https://apse.pp.riotgames.com";
       case BaseUrlType.playerpreferences:
         return "https://playerpreferences.riotgames.com";
-      default:
-        throw Exception("Unknown endpoint type");
     }
   }
 }

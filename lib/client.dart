@@ -148,7 +148,7 @@ class Client {
   /// Get recent matches for a player
   ///
   /// There are 3 optional query parameters: start_index, end_index, and queue_id. queue can be one of null, competitive, custom, deathmatch, ggteam, newmap, onefa, snowball, spikerush, or unrated.
-  Future<Map<String, dynamic>> fetchMatchHistory({String? puuid, int startIndex = 0, int endIndex = 15, Queues queue = Queues.empty}) async {
+  Future<Map<String, dynamic>> fetchMatchHistory({String? puuid, int? startIndex, int? endIndex, Queues queue = Queues.all}) async {
     var data = await fetch(endpoint: resources.endpoints.MatchHistory_FetchMatchHistory(puuid: puuid ?? this.puuid, startIndex: startIndex, endIndex: endIndex, queue: queue));
     return data;
   }

@@ -13,10 +13,24 @@ class ValorantResources {
   final Map<String, String> shardRegionOverrides = {"pbe": "na"};
 }
 
-enum Queues { competitive, custom, deathmatch, ggteam, snowball, spikerush, unrated, onefa, empty }
+enum Queues { competitive, custom, deathmatch, ggteam, snowball, spikerush, unrated, onefa, all }
 
 extension QueuesExtension on Queues {
-  String get name => toString().split('.').last;
+  String get codeName => toString().split('.').last;
+
+  // Name overrides
+  String get name {
+    switch (this) {
+      case Queues.ggteam:
+        return "escalation";
+      case Queues.onefa:
+        return "replication";
+      default:
+        return codeName;
+    }
+  }
+
+  List<String> get names => Queues.values.map((e) => e.name).toList();
 }
 
 enum CustomGameTeams { TeamTwo, TeamOne, TeamSpectate, TeamOneCoaches, TeamTwoCoaches }
@@ -64,7 +78,7 @@ class _Endpoints {
 
   Endpoint MatchDetails_FetchMatchDetails({required String matchId}) => Endpoint(url: "/match-details/v1/matches/$matchId", baseUrlType: BaseUrlType.pd, methodType: MethodType.PUT);
 
-  Endpoint MatchHistory_FetchMatchHistory({required String puuid, required int startIndex, required int endIndex, required Queues queue}) => Endpoint(url: "/match-history/v1/history/$puuid??startIndex=$startIndex&endIndex=$endIndex${queue == Queues.empty ? "" : "&queue=" + queue.name}", baseUrlType: BaseUrlType.pd, methodType: MethodType.GET);
+  Endpoint MatchHistory_FetchMatchHistory({required String puuid, int? startIndex, int? endIndex, Queues queue = Queues.all}) => Endpoint(url: "/match-history/v1/history/$puuid?${startIndex != null ? "startIndex=$startIndex" : null}${endIndex != null ? "&endIndex=$endIndex" : null}${queue == Queues.all ? "" : "&queue=" + queue.codeName}", baseUrlType: BaseUrlType.pd, methodType: MethodType.GET);
 
   Endpoint MassRewards_ReconcilePlayer({required String puuid}) => Endpoint(url: "/mass-rewards/v1/players/$puuid/reconcile", baseUrlType: BaseUrlType.pd, methodType: MethodType.GET);
 
