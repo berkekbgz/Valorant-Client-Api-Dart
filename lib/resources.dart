@@ -7,10 +7,44 @@ class ValorantResources {
   ValorantResources._init();
 
   _Endpoints get endpoints => _Endpoints();
+}
 
-  final List<String> regions = ["na", "eu", "latam", "br", "ap", "kr", "pbe", "tr"];
-  final Map<String, String> regionShardOverrides = {"latam": "na", "br": "na", "tr": "eu"};
-  final Map<String, String> shardRegionOverrides = {"pbe": "na"};
+enum Region { NA, EU, LATAM, BR, AP, KR, PBE, TUR }
+
+extension RegionsExtension on Region {
+  String get name {
+    return toString().split('.').last;
+  }
+
+  String get codeName {
+    switch (this) {
+      case Region.LATAM:
+        return "na";
+      case Region.BR:
+        return "na";
+      case Region.TUR:
+        return "eu";
+      default:
+        return toString().split('.').last.toLowerCase();
+    }
+  }
+
+  String get shard {
+    switch (this) {
+      case Region.PBE:
+        return "na";
+      case Region.TUR:
+        return "eu";
+      default:
+        return toString().split('.').last.toLowerCase();
+    }
+  }
+}
+
+Region getRegionFromString(String region) {
+  return Region.values.firstWhere((element) {
+    return element.name.toLowerCase() == region.toLowerCase();
+  });
 }
 
 enum Queues { competitive, custom, deathmatch, ggteam, snowball, spikerush, unrated, onefa, all }
@@ -31,6 +65,10 @@ extension QueuesExtension on Queues {
   }
 
   List<String> get names => Queues.values.map((e) => e.name).toList();
+}
+
+Queues getQueueFromString(String queue) {
+  return Queues.values.firstWhere((element) => element.name == queue || element.codeName == queue);
 }
 
 enum CustomGameTeams { TeamTwo, TeamOne, TeamSpectate, TeamOneCoaches, TeamTwoCoaches }

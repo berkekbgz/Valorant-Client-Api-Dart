@@ -14,7 +14,7 @@ class Auth {
       "client_id": "play-valorant-web-prod",
       "nonce": "1",
       "redirect_uri": "https://playvalorant.com/opt_in",
-      "response_type": "token id_token",
+      "response_type": "id_token token",
     };
 
     var session = Session();

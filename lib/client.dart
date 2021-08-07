@@ -18,25 +18,17 @@ class Client {
   String? shard;
   Auth? auth;
 
-  Client({required String region, String? username, String? password}) {
+  Client({required Region region, String? username, String? password}) {
     if (username == null && password == null) {
       lockfilepath = Platform.environment['LOCALAPPDATA']! + r"\Riot Games\Riot Client\Config\lockfile";
     } else {
       auth = Auth(username!, password!);
     }
 
-    if (resources.regions.contains(region)) {
-      this.region = region;
-      shard = region;
-    } else {
-      throw Exception("Invadlid region, valid regions are: ${ValorantResources.instance.regions}");
-    }
-
-    if (resources.regionShardOverrides.keys.contains(this.region)) shard = resources.regionShardOverrides[this.region]!;
-    if (resources.shardRegionOverrides.keys.contains(shard)) this.region = resources.shardRegionOverrides[shard]!;
+    shard = region.shard;
+    this.region = region.codeName;
+    print("$shard:${this.region}");
   }
-
-  List<String> get regions => resources.regions;
 
   Future<void> activate() async {
     try {
@@ -62,18 +54,7 @@ class Client {
     data = json.decode(response.body);
     if (data != null) {
       if (data['httpStatus'] == 400) {
-        //If headers expired
-        if (auth == null) {
-          localHeaders = _getLocalHeaders();
-          (headers = await _getHeaders(lockfile!.port, localHeaders)).addAll({"content-type": "application/json"});
-          puuid = await _getPuuid(lockfile!.port, localHeaders);
-        } else {
-          var authenticate = await auth!.authenticate();
-          puuid = authenticate['userId'];
-          headers.addAll(authenticate['headers']);
-          localHeaders = {};
-        }
-        return fetch(endpoint: endpoint);
+        throw Exception("Oops Something went wrong: $endpoint");
       } else {
         return data;
       }
