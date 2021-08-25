@@ -9,6 +9,8 @@ class ValorantResources {
   _Endpoints get endpoints => _Endpoints();
 }
 
+enum ApiRuntimeType { LOCAL, NORMAL, NONE }
+
 enum Region { NA, EU, LATAM, BR, AP, KR, PBE, TUR }
 
 extension RegionsExtension on Region {

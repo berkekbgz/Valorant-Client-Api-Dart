@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/io.dart';
 
 import 'auth.dart';
 import 'models/endpoint_model.dart';
@@ -17,6 +19,10 @@ class Client {
   String? region;
   String? shard;
   Auth? auth;
+  ApiRuntimeType _apiRuntimeType = ApiRuntimeType.NONE;
+  IOWebSocketChannel? _ioWebSocketChannel;
+
+  ApiRuntimeType get apiRuntimeType => _apiRuntimeType;
 
   Client({required Region region, String? username, String? password}) {
     if (username == null && password == null) {
@@ -29,14 +35,34 @@ class Client {
     this.region = region.codeName;
   }
 
+  Stream get localRiotWebSocketConnection => _ioWebSocketChannel != null ? _ioWebSocketChannel!.stream : Stream.empty();
+
+  void onCurrentPlayerStateUpdatedLocal(Function(Map data) onUpdate) {
+    localRiotWebSocketConnection.listen((event) {
+      if (event != "") {
+        var response = json.decode(event);
+        if (response[2]['uri'] == "/chat/v4/presences" && response[2]['data']['presences'][0]['product'] == "valorant") {
+          if (response[2]['data']['presences'][0]['puuid'] == puuid) {
+            onUpdate(json.decode(String.fromCharCodes(base64.decode(response[2]['data']['presences'][0]['private']))));
+          }
+        }
+      }
+    });
+  }
+
   Future<void> activate() async {
     try {
       if (auth == null) {
+        _apiRuntimeType = ApiRuntimeType.LOCAL;
         lockfile = await _getLockfile();
         localHeaders = _getLocalHeaders();
         headers.addAll(await _getHeaders(lockfile!.port, localHeaders));
         puuid = await _getPuuid(lockfile!.port, localHeaders);
+        _ioWebSocketChannel = IOWebSocketChannel.connect(Uri.parse("wss://riot:${lockfile!.password}@localhost:${lockfile!.port}"));
+        _ioWebSocketChannel!.sink.add('[5, "OnJsonApiEvent"]');
       } else {
+        _apiRuntimeType = ApiRuntimeType.NORMAL;
+
         var authenticated = await auth!.authenticate();
         puuid = authenticated['userId'];
         headers.addAll(authenticated['headers']);
@@ -50,33 +76,33 @@ class Client {
   Future<Map<String, dynamic>> fetch({required Endpoint endpoint}) async {
     Map<String, dynamic>? data;
     var response = await http.get(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers);
-    data = json.decode(response.body);
+    data = json.decode(utf8.decode(response.bodyBytes));
     if (data != null) {
       if (data['httpStatus'] == 400) {
-        throw Exception("Oops Something went wrong: $endpoint");
+        throw Exception("Oops Something went wrong: ${endpoint.url}");
       } else {
         return data;
       }
     } else {
-      throw Exception("Fetch request returned null. Endpoint: $endpoint");
+      throw Exception("Fetch request returned null. Endpoint: ${endpoint.url}");
     }
   }
 
   Future<Map<String, dynamic>> post({required Endpoint endpoint, Object? jsonData}) async {
     var response = await http.post(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
-    var data = json.decode(response.body);
+    var data = json.decode(utf8.decode(response.bodyBytes));
     return data;
   }
 
   Future<Map<String, dynamic>> put({required Endpoint endpoint, Object? jsonData}) async {
     var response = await http.put(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
-    var data = json.decode(response.body);
+    var data = json.decode(utf8.decode(response.bodyBytes));
     return data;
   }
 
   Future<Map<String, dynamic>> delete({required Endpoint endpoint, Object? jsonData}) async {
     var response = await http.delete(Uri.parse(endpoint.baseUrlType.uri(this) + endpoint.url), headers: endpoint.useLocalHeaders ? localHeaders : headers, body: json.encode(jsonData ?? {}));
-    var data = json.decode(response.body);
+    var data = json.decode(utf8.decode(response.bodyBytes));
     return data;
   }
 
@@ -659,12 +685,9 @@ class Client {
   /// NOTE: Only works on self or active user's friends
   Future<Map<String, dynamic>> localRiotClientFetchPresence({String? puuid}) async {
     var data = await fetch(endpoint: resources.endpoints.LocalRiotClient_GetAllPresences());
-    for (var presence in data['presences']) {
-      if (presence['puuid'] == (puuid ?? this.puuid)) {
-        return json.decode(String.fromCharCodes(base64.decode(presence['private'])));
-      }
-    }
-    throw Exception("Error while fetching presences");
+    var presence = (data['presences'] as List).firstWhere((element) => element['puuid'] == (puuid ?? this.puuid));
+    return json.decode(String.fromCharCodes(base64.decode(presence['private'])));
+    //throw Exception("Error while fetching presences");
   }
 
   /// ### PRESENCE_RNet_GET_ALL
