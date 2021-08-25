@@ -27,7 +27,6 @@ class Client {
 
     shard = region.shard;
     this.region = region.codeName;
-    print("$shard:${this.region}");
   }
 
   Future<void> activate() async {
